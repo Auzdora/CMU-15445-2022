@@ -49,27 +49,8 @@ auto BPLUSTREE_TYPE::GetValue(const KeyType &key, std::vector<ValueType> *result
   return true;
 }
 
-// INDEX_TEMPLATE_ARGUMENTS
-// void BPLUSTREE_TYPE::FindPage(const KeyType &key, page_id_t &page_id) {
-//   auto *curr_page = reinterpret_cast<InternalPage *>(buffer_pool_manager_->FetchPage(root_page_id_)->GetData());
-//   if (curr_page == nullptr) {
-//     throw std::runtime_error("An error occurred. Root page can't fetch");
-//   }
-//   while (!curr_page->IsLeafPage()) {
-//     page_id_t next_page_id;
-//     // binary search, store the index into next_page_id
-//     curr_page->Find(key, next_page_id, comparator_);
-//     buffer_pool_manager_->UnpinPage(curr_page->GetPageId(), false);
-//     curr_page = reinterpret_cast<InternalPage *>(buffer_pool_manager_->FetchPage(next_page_id)->GetData());
-//   }
-
-//   // curr_page is a leaf node
-//   page_id = curr_page->GetPageId();
-//   buffer_pool_manager_->UnpinPage(page_id, false);
-// }
-
 INDEX_TEMPLATE_ARGUMENTS
-void BPLUSTREE_TYPE::FindPage(const KeyType &key, BPlusTreePage *&page) {
+void BPLUSTREE_TYPE::FindPage(const KeyType &key, page_id_t &page_id) {
   auto *curr_page = reinterpret_cast<InternalPage *>(buffer_pool_manager_->FetchPage(root_page_id_)->GetData());
   if (curr_page == nullptr) {
     throw std::runtime_error("An error occurred. Root page can't fetch");
@@ -83,9 +64,8 @@ void BPLUSTREE_TYPE::FindPage(const KeyType &key, BPlusTreePage *&page) {
   }
 
   // curr_page is a leaf node
-  page = curr_page;
-  // page_id = curr_page->GetPageId();
-  // buffer_pool_manager_->UnpinPage(page_id, false);
+  page_id = curr_page->GetPageId();
+  buffer_pool_manager_->UnpinPage(page_id, false);
 }
 
 /*****************************************************************************

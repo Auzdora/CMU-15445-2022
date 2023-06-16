@@ -81,7 +81,7 @@ class BPlusTree {
 
   // return the value associated with a given key
   // void FindPage(const KeyType &key, page_id_t &page_id);
-  void FindPage(const KeyType &key, BPlusTreePage *&page);
+  void FindPage(const KeyType &key, page_id_t &page_id);
 
   // return the page id of the root node
   auto GetRootPageId() -> page_id_t;
