@@ -34,7 +34,7 @@ INDEX_TEMPLATE_ARGUMENTS
 auto BPLUSTREE_TYPE::GetValue(const KeyType &key, std::vector<ValueType> *result, Transaction *transaction) -> bool {
   page_id_t leaf_page_id;
   // TODO:
-  FindPage(key, leaf_page_id);
+  FindLeafPage(key, leaf_page_id);
 
   // fetch leaf node based on leaf_page_id
   ValueType value;
@@ -50,7 +50,7 @@ auto BPLUSTREE_TYPE::GetValue(const KeyType &key, std::vector<ValueType> *result
 }
 
 INDEX_TEMPLATE_ARGUMENTS
-void BPLUSTREE_TYPE::FindPage(const KeyType &key, page_id_t &page_id) {
+void BPLUSTREE_TYPE::FindLeafPage(const KeyType &key, page_id_t &page_id) {
   auto *curr_page = reinterpret_cast<InternalPage *>(buffer_pool_manager_->FetchPage(root_page_id_)->GetData());
   if (curr_page == nullptr) {
     throw std::runtime_error("An error occurred. Root page can't fetch");
@@ -66,6 +66,12 @@ void BPLUSTREE_TYPE::FindPage(const KeyType &key, page_id_t &page_id) {
   // curr_page is a leaf node
   page_id = curr_page->GetPageId();
   buffer_pool_manager_->UnpinPage(page_id, false);
+}
+
+INDEX_TEMPLATE_ARGUMENTS
+auto BPLUSTREE_TYPE::FetchPage(page_id_t page_id) -> BPlusTreePage * {
+  auto page = buffer_pool_manager_->FetchPage(page_id);
+  return reinterpret_cast<BPlusTreePage *>(page->GetData());
 }
 
 /*****************************************************************************
@@ -96,7 +102,7 @@ auto BPLUSTREE_TYPE::Insert(const KeyType &key, const ValueType &value, Transact
     buffer_pool_manager_->UnpinPage(leaf_page_id, true);
   } else {
     // TODO:
-    FindPage(key, leaf_page_id);
+    FindLeafPage(key, leaf_page_id);
   }
 
   /*
@@ -290,7 +296,7 @@ void BPLUSTREE_TYPE::Remove(const KeyType &key, Transaction *transaction) {
   ValueType useless;
 
   // TODO:
-  FindPage(key, leaf_page_id);
+  FindLeafPage(key, leaf_page_id);
 
   auto *leaf_page = reinterpret_cast<LeafPage *>(buffer_pool_manager_->FetchPage(leaf_page_id)->GetData());
   if (!leaf_page->Remove(key, useless, comparator_)) {
@@ -569,7 +575,7 @@ auto BPLUSTREE_TYPE::Begin(const KeyType &key) -> INDEXITERATOR_TYPE {
   page_id_t page_id;
 
   // TODO:
-  FindPage(key, page_id);
+  FindLeafPage(key, page_id);
   auto *leaf_page = reinterpret_cast<LeafPage *>(buffer_pool_manager_->FetchPage(page_id)->GetData());
 
   int idx;
