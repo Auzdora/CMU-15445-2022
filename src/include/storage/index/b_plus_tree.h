@@ -55,7 +55,7 @@ class BPlusTree {
   // Helper function of Insert. Leaf Page do split
   void LeafDoSplit(LeafPage *leaf_page);
   // Helper function of Insert. Parent Page do split
-  void ParentDoSplit(InternalPage *parent_page, BPlusTreePage *page, BPlusTreePage *sibling_page,
+  void ParentDoSplit(InternalPage *parent_page, page_id_t sib_page_id,
                          const KeyType &key, const KeyType &sib_key);
 
   // Remove a key and its value from this B+ tree.
@@ -81,7 +81,8 @@ class BPlusTree {
 
   // return the value associated with a given key
   // void FindPage(const KeyType &key, page_id_t &page_id);
-  void FindPage(const KeyType &key, page_id_t &page_id);
+  auto FindLeafPage(const KeyType &key, page_id_t &page_id) -> LeafPage *;
+  auto FetchPage(page_id_t page_id) -> BPlusTreePage *;
 
   // return the page id of the root node
   auto GetRootPageId() -> page_id_t;
