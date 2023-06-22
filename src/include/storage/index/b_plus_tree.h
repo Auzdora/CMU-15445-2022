@@ -55,7 +55,7 @@ class BPlusTree {
   // Helper function of Insert. Leaf Page do split
   void LeafDoSplit(LeafPage *leaf_page);
   // Helper function of Insert. Parent Page do split
-  void ParentDoSplit(InternalPage *parent_page, BPlusTreePage *page, BPlusTreePage *sibling_page,
+  void ParentDoSplit(InternalPage *parent_page, page_id_t sib_page_id,
                          const KeyType &key, const KeyType &sib_key);
 
   // Remove a key and its value from this B+ tree.

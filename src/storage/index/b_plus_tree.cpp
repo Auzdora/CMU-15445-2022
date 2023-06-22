@@ -172,6 +172,7 @@ INDEX_TEMPLATE_ARGUMENTS
 void BPLUSTREE_TYPE::InsertInParent(BPlusTreePage *page, BPlusTreePage *sibling_page, const KeyType &key,
                                     const KeyType &sib_key) {
   page_id_t parent_page_id;
+  page_id_t sibling_page_id = sibling_page->GetPageId();
 
   if (page->IsRootPage()) {
     return InsertRootHandler(page, sibling_page, parent_page_id, key, sib_key);
@@ -182,16 +183,18 @@ void BPLUSTREE_TYPE::InsertInParent(BPlusTreePage *page, BPlusTreePage *sibling_
   auto *parent_page = reinterpret_cast<InternalPage *>(buffer_pool_manager_->FetchPage(parent_page_id)->GetData());
 
   if (parent_page->GetSize() < parent_page->GetMaxSize()) {
-    parent_page->Insert(sib_key, sibling_page->GetPageId(), comparator_);
+    parent_page->Insert(sib_key, sibling_page_id, comparator_);
     sibling_page->SetParentPageId(parent_page_id);
     buffer_pool_manager_->UnpinPage(parent_page_id, true);
     buffer_pool_manager_->UnpinPage(page->GetPageId(), true);
-    buffer_pool_manager_->UnpinPage(sibling_page->GetPageId(), true);
+    buffer_pool_manager_->UnpinPage(sibling_page_id, true);
     return;
   }
 
   // do split
-  ParentDoSplit(parent_page, page, sibling_page, key, sib_key);
+  buffer_pool_manager_->UnpinPage(page->GetPageId(), true);
+  buffer_pool_manager_->UnpinPage(sibling_page->GetPageId(), true);
+  ParentDoSplit(parent_page, sibling_page_id, key, sib_key);
 }
 
 /*
@@ -227,9 +230,8 @@ void BPLUSTREE_TYPE::InsertRootHandler(BPlusTreePage *page, BPlusTreePage *sibli
  * Call InsertInParent.
  */
 INDEX_TEMPLATE_ARGUMENTS
-void BPLUSTREE_TYPE::ParentDoSplit(InternalPage *parent_page, BPlusTreePage *page, BPlusTreePage *sibling_page,
+void BPLUSTREE_TYPE::ParentDoSplit(InternalPage *parent_page, page_id_t sib_page_id,
                          const KeyType &key, const KeyType &sib_key) {
-  page_id_t sibling_page_id = sibling_page->GetPageId();
   std::pair<KeyType, page_id_t> temp_array[internal_max_size_ + 1];
   parent_page->CopyOut(temp_array, 0, parent_page->GetMaxSize());
 
@@ -250,10 +252,7 @@ void BPLUSTREE_TYPE::ParentDoSplit(InternalPage *parent_page, BPlusTreePage *pag
   }
   
   temp_array[start].first = sib_key;
-  temp_array[start].second = sibling_page->GetPageId();
-
-  buffer_pool_manager_->UnpinPage(page->GetPageId(), true);
-  buffer_pool_manager_->UnpinPage(sibling_page->GetPageId(), true);
+  temp_array[start].second = sib_page_id;
 
   // erase all the record in parent_page
   parent_page->SetSize(0);
@@ -273,9 +272,9 @@ void BPLUSTREE_TYPE::ParentDoSplit(InternalPage *parent_page, BPlusTreePage *pag
 
   // rearrange parent page id
   if (comparator_(sib_key, temp_array[middle].first) < 0) {
-    auto *child_page = reinterpret_cast<BPlusTreePage *>(buffer_pool_manager_->FetchPage(sibling_page_id)->GetData());
+    auto *child_page = reinterpret_cast<BPlusTreePage *>(buffer_pool_manager_->FetchPage(sib_page_id)->GetData());
     child_page->SetParentPageId(parent_page->GetPageId());
-    buffer_pool_manager_->UnpinPage(sibling_page_id, true);
+    buffer_pool_manager_->UnpinPage(sib_page_id, true);
   }
   for (int i = 0; i < sibling_parent_page->GetSize(); i++) {
     page_id_t child_page_id = sibling_parent_page->ValueAt(i);
