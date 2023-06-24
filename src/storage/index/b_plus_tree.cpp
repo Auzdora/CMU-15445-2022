@@ -33,7 +33,6 @@ auto BPLUSTREE_TYPE::IsEmpty() const -> bool { return root_page_id_ == INVALID_P
 INDEX_TEMPLATE_ARGUMENTS
 auto BPLUSTREE_TYPE::GetValue(const KeyType &key, std::vector<ValueType> *result, Transaction *transaction) -> bool {
   page_id_t leaf_page_id;
-  // TODO:
   auto leaf_page = FindLeafPage(key, leaf_page_id);
 
   // fetch leaf node based on leaf_page_id
@@ -300,14 +299,9 @@ void BPLUSTREE_TYPE::Remove(const KeyType &key, Transaction *transaction) {
   page_id_t leaf_page_id;
   ValueType useless;
 
-  // TODO:
   auto leaf_page = FindLeafPage(key, leaf_page_id);
 
-  // auto *leaf_page = reinterpret_cast<LeafPage *>(buffer_pool_manager_->FetchPage(leaf_page_id)->GetData());
   if (!leaf_page->Remove(key, useless, comparator_)) {
-    std::cout << "leaf page id is " << leaf_page_id << std::endl;
-    leaf_page->PrintArray();
-    std::cout << std::endl;
     throw std::runtime_error("Remove: can't find to remove");
   }
 
@@ -397,11 +391,6 @@ auto BPLUSTREE_TYPE::FindNeighbor(N *page, N *&neighbor_page, KeyType &intermedi
   auto *parent_page = reinterpret_cast<InternalPage *>(buffer_pool_manager_->FetchPage(parent_page_id)->GetData());
 
   if (!parent_page->FindIndex(page->GetPageId(), page_index)) {
-    std::cout << "page id is " << page->GetPageId() << std::endl;
-    parent_page->PrintArray();
-    std::cout << std::endl;
-    page->PrintArray();
-    std::cout << std::endl;
     throw std::runtime_error("can't find page id");
   }
 
@@ -453,10 +442,6 @@ void BPLUSTREE_TYPE::Coalesce(N *front_page, N *back_page, const KeyType &interm
       reinterpret_cast<InternalPage *>(buffer_pool_manager_->FetchPage(back_page->GetParentPageId())->GetData());
 
   if (!parent_page->Remove(intermediate_key, back_page->GetPageId(), comparator_)) {
-    std::cout << "want remove intermediate key " << intermediate_key << std::endl;
-    std::cout << "but the parent page contains ";
-    parent_page->PrintArray();
-    std::cout << std::endl;
     throw std::runtime_error("Coalesce: can't find to remove");
   }
 
@@ -579,7 +564,6 @@ INDEX_TEMPLATE_ARGUMENTS
 auto BPLUSTREE_TYPE::Begin(const KeyType &key) -> INDEXITERATOR_TYPE {
   page_id_t page_id;
 
-  // TODO:
   auto leaf_page = FindLeafPage(key, page_id);
   // auto *leaf_page = reinterpret_cast<LeafPage *>(buffer_pool_manager_->FetchPage(page_id)->GetData());
 
