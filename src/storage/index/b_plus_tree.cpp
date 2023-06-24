@@ -93,48 +93,44 @@ auto BPLUSTREE_TYPE::FetchPage(page_id_t page_id) -> BPlusTreePage * {
  */
 INDEX_TEMPLATE_ARGUMENTS
 auto BPLUSTREE_TYPE::Insert(const KeyType &key, const ValueType &value, Transaction *transaction) -> bool {
-  // std::cout << "insert " << key << std::endl;
-  /*
-   * check if current tree is empty, if is empty you need to allocate a new page
-   * from buffer pool manager, and call UpdateRootPageId(1) to update root_page_id
-   */
-  page_id_t leaf_page_id;
-  LeafPage *leaf_page;
-  //
+  // if tree is empty, create a root page and insert into it
   if (IsEmpty()) {
-    leaf_page = reinterpret_cast<LeafPage *>(buffer_pool_manager_->NewPage(&root_page_id_)->GetData());
-    UpdateRootPageId(1);
-
-    leaf_page->Init(root_page_id_, INVALID_PAGE_ID, leaf_max_size_);
-    leaf_page_id = leaf_page->GetPageId();
-    buffer_pool_manager_->UnpinPage(leaf_page_id, true);
-  } else {
-    // TODO:
-    leaf_page = FindLeafPage(key, leaf_page_id);
+    InsertIntoRoot(key, value, transaction);
+    return true;
   }
 
-  /*
-   * insert key-value pair into leaf page
-   */
-  // auto *leaf_page = reinterpret_cast<LeafPage *>(buffer_pool_manager_->FetchPage(leaf_page_id)->GetData());
+  // insert key-value pair into leaf page
+  return InsertIntoLeaf(key, value, transaction);
+}
+
+INDEX_TEMPLATE_ARGUMENTS
+void BPLUSTREE_TYPE::InsertIntoRoot(const KeyType &key, const ValueType &value, Transaction *transaction) {
+  auto root_raw_page = buffer_pool_manager_->NewPage(&root_page_id_);
+  auto root_page = reinterpret_cast<LeafPage *>(root_raw_page->GetData());
+  
+  root_page->Init(root_page_id_, INVALID_PAGE_ID, leaf_max_size_);
+  UpdateRootPageId(1);
+  root_page->Insert(key, value, comparator_);
+  buffer_pool_manager_->UnpinPage(root_page_id_, true);
+  
+  return;
+}
+
+INDEX_TEMPLATE_ARGUMENTS
+auto BPLUSTREE_TYPE::InsertIntoLeaf(const KeyType &key, const ValueType &value, Transaction *transaction) -> bool {
+  page_id_t leaf_page_id;
+  LeafPage *leaf_page = FindLeafPage(key, leaf_page_id);
+
   if (leaf_page->GetSize() < leaf_page->GetMaxSize() - 1) {
-    if (!leaf_page->Insert(key, value, comparator_)) {
-      buffer_pool_manager_->UnpinPage(leaf_page_id, false);
-      return false;
-    }
+    leaf_page->Insert(key, value, comparator_);
     buffer_pool_manager_->UnpinPage(leaf_page_id, true);
     return true;
   }
 
   // the leaf page already full, insert first, then do split
-  if (!leaf_page->Insert(key, value, comparator_)) {
-    buffer_pool_manager_->UnpinPage(leaf_page_id, false);
-    return false;
-  }
-
-  // do split
+  leaf_page->Insert(key, value, comparator_);
   LeafDoSplit(leaf_page);
-
+  
   return true;
 }
 
@@ -147,8 +143,9 @@ auto BPLUSTREE_TYPE::Insert(const KeyType &key, const ValueType &value, Transact
  */
 INDEX_TEMPLATE_ARGUMENTS
 void BPLUSTREE_TYPE::LeafDoSplit(LeafPage *leaf_page) {
-  page_id_t sibling_leaf_page_id;
   int middle = std::ceil(static_cast<double>(leaf_page->GetMaxSize()) / 2);
+  // create sibling leaf page
+  page_id_t sibling_leaf_page_id;
   auto *sibling_leaf_page =
       reinterpret_cast<LeafPage *>(buffer_pool_manager_->NewPage(&sibling_leaf_page_id)->GetData());
   sibling_leaf_page->Init(sibling_leaf_page_id, INVALID_PAGE_ID, leaf_max_size_);
@@ -160,7 +157,7 @@ void BPLUSTREE_TYPE::LeafDoSplit(LeafPage *leaf_page) {
   sibling_leaf_page->SetNextPageId(leaf_page->GetNextPageId());
   leaf_page->SetNextPageId(sibling_leaf_page_id);
 
-  InsertInParent(leaf_page, sibling_leaf_page, leaf_page->GetArray()[0].first, sibling_leaf_page->GetArray()[0].first);
+  InsertIntoParent(leaf_page, sibling_leaf_page, leaf_page->GetArray()[0].first, sibling_leaf_page->GetArray()[0].first);
 }
 
 /*
@@ -169,22 +166,21 @@ void BPLUSTREE_TYPE::LeafDoSplit(LeafPage *leaf_page) {
  * insert sib_key into parent page. Else, Call ParentDoSplit.
  */
 INDEX_TEMPLATE_ARGUMENTS
-void BPLUSTREE_TYPE::InsertInParent(BPlusTreePage *page, BPlusTreePage *sibling_page, const KeyType &key,
+void BPLUSTREE_TYPE::InsertIntoParent(BPlusTreePage *page, BPlusTreePage *sibling_page, const KeyType &key,
                                     const KeyType &sib_key) {
-  page_id_t parent_page_id;
-  page_id_t sibling_page_id = sibling_page->GetPageId();
-
   if (page->IsRootPage()) {
-    return InsertRootHandler(page, sibling_page, parent_page_id, key, sib_key);
+    return InsertRootHandler(page, sibling_page, key, sib_key);
   }
 
   // if it's not root page
-  parent_page_id = page->GetParentPageId();
+  page_id_t parent_page_id = page->GetParentPageId();;
+  page_id_t sibling_page_id = sibling_page->GetPageId();
   auto *parent_page = reinterpret_cast<InternalPage *>(buffer_pool_manager_->FetchPage(parent_page_id)->GetData());
 
   if (parent_page->GetSize() < parent_page->GetMaxSize()) {
     parent_page->Insert(sib_key, sibling_page_id, comparator_);
     sibling_page->SetParentPageId(parent_page_id);
+
     buffer_pool_manager_->UnpinPage(parent_page_id, true);
     buffer_pool_manager_->UnpinPage(page->GetPageId(), true);
     buffer_pool_manager_->UnpinPage(sibling_page_id, true);
@@ -194,7 +190,7 @@ void BPLUSTREE_TYPE::InsertInParent(BPlusTreePage *page, BPlusTreePage *sibling_
   // do split
   buffer_pool_manager_->UnpinPage(page->GetPageId(), true);
   buffer_pool_manager_->UnpinPage(sibling_page->GetPageId(), true);
-  ParentDoSplit(parent_page, sibling_page_id, key, sib_key);
+  ParentDoSplit(parent_page, sib_key, sibling_page_id);
 }
 
 /*
@@ -204,19 +200,19 @@ void BPLUSTREE_TYPE::InsertInParent(BPlusTreePage *page, BPlusTreePage *sibling_
  * Call UpdateRootPageId.
  */
 INDEX_TEMPLATE_ARGUMENTS
-void BPLUSTREE_TYPE::InsertRootHandler(BPlusTreePage *page, BPlusTreePage *sibling_page, page_id_t &parent_page_id,
-                                       const KeyType &key, const KeyType &sib_key) {
-  auto *root_page = reinterpret_cast<InternalPage *>(buffer_pool_manager_->NewPage(&parent_page_id)->GetData());
-  root_page->Init(parent_page_id, INVALID_PAGE_ID, internal_max_size_);
+void BPLUSTREE_TYPE::InsertRootHandler(BPlusTreePage *page, BPlusTreePage *sibling_page, const KeyType &key, const KeyType &sib_key) {
+  page_id_t new_root_page_id;
+  auto *root_page = reinterpret_cast<InternalPage *>(buffer_pool_manager_->NewPage(&new_root_page_id)->GetData());
+  root_page->Init(new_root_page_id, INVALID_PAGE_ID, internal_max_size_);
   root_page->Insert(key, page->GetPageId(), comparator_);
   root_page->Insert(sib_key, sibling_page->GetPageId(), comparator_);
-  page->SetParentPageId(parent_page_id);
-  sibling_page->SetParentPageId(parent_page_id);
-  root_page_id_ = parent_page_id;
+  page->SetParentPageId(new_root_page_id);
+  sibling_page->SetParentPageId(new_root_page_id);
+  root_page_id_ = new_root_page_id;
 
   buffer_pool_manager_->UnpinPage(page->GetPageId(), true);
   buffer_pool_manager_->UnpinPage(sibling_page->GetPageId(), true);
-  buffer_pool_manager_->UnpinPage(parent_page_id, true);
+  buffer_pool_manager_->UnpinPage(new_root_page_id, true);
 
   UpdateRootPageId(0);
 }
@@ -230,32 +226,13 @@ void BPLUSTREE_TYPE::InsertRootHandler(BPlusTreePage *page, BPlusTreePage *sibli
  * Call InsertInParent.
  */
 INDEX_TEMPLATE_ARGUMENTS
-void BPLUSTREE_TYPE::ParentDoSplit(InternalPage *parent_page, page_id_t sib_page_id,
-                         const KeyType &key, const KeyType &sib_key) {
+void BPLUSTREE_TYPE::ParentDoSplit(InternalPage *parent_page, const KeyType &sib_key, page_id_t sib_page_id) {
   std::pair<KeyType, page_id_t> temp_array[internal_max_size_ + 1];
   parent_page->CopyOut(temp_array, 0, parent_page->GetMaxSize());
-
-  // find the right place to insert into temp_array, using binary search
-  int start = 1;
-  int end = parent_page->GetMaxSize() - 1;
-  while (start <= end) {
-    int mid = start + (end - start) / 2;
-    if (comparator_(sib_key, temp_array[mid].first) <= 0) {
-      end = mid - 1;
-    } else {
-      start = mid + 1;
-    }
-  }
-  for (int i = internal_max_size_ - 1; i >= start; i--) {
-    temp_array[i + 1].first = temp_array[i].first;
-    temp_array[i + 1].second = temp_array[i].second;
-  }
-  
-  temp_array[start].first = sib_key;
-  temp_array[start].second = sib_page_id;
-
-  // erase all the record in parent_page
   parent_page->SetSize(0);
+  // find the right place to insert into temp_array, using binary search
+  InsertIntoTmpArray(sib_key, sib_page_id, temp_array);
+  
   // create a sibling parent page
   page_id_t sibling_parent_page_id;
   auto *sibling_parent_page =
@@ -283,7 +260,28 @@ void BPLUSTREE_TYPE::ParentDoSplit(InternalPage *parent_page, page_id_t sib_page
     buffer_pool_manager_->UnpinPage(child_page_id, true);
   }
 
-  InsertInParent(parent_page, sibling_parent_page, temp_array[0].first, temp_array[middle].first);
+  InsertIntoParent(parent_page, sibling_parent_page, temp_array[0].first, temp_array[middle].first);
+}
+
+INDEX_TEMPLATE_ARGUMENTS
+void BPLUSTREE_TYPE::InsertIntoTmpArray(const KeyType &sib_key, page_id_t sib_page_id, std::pair<KeyType, page_id_t> temp_array[]) {
+  int start = 1;
+  int end = internal_max_size_ - 1;
+  while (start <= end) {
+    int mid = start + (end - start) / 2;
+    if (comparator_(sib_key, temp_array[mid].first) <= 0) {
+      end = mid - 1;
+    } else {
+      start = mid + 1;
+    }
+  }
+  for (int i = internal_max_size_ - 1; i >= start; i--) {
+    temp_array[i + 1].first = temp_array[i].first;
+    temp_array[i + 1].second = temp_array[i].second;
+  }
+  
+  temp_array[start].first = sib_key;
+  temp_array[start].second = sib_page_id;
 }
 
 /*****************************************************************************

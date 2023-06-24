@@ -47,16 +47,19 @@ class BPlusTree {
 
   // Insert a key-value pair into this B+ tree.
   auto Insert(const KeyType &key, const ValueType &value, Transaction *transaction = nullptr) -> bool;
+  // Helper fucntion of Insert. Handle the situation where tree has no node
+  void InsertIntoRoot(const KeyType &key, const ValueType &value, Transaction *transaction);
+  // Helper fucntion of Insert. Handle the situation where tree has no node
+  auto InsertIntoLeaf(const KeyType &key, const ValueType &value, Transaction *transaction) -> bool;
   // Helper function of Insert. Insert into parent node.
-  void InsertInParent(BPlusTreePage *page, BPlusTreePage *sibling_page, const KeyType &key, const KeyType &sib_key);
+  void InsertIntoParent(BPlusTreePage *page, BPlusTreePage *sibling_page, const KeyType &key, const KeyType &sib_key);
   // Helper function of Insert. Insert root page handler.
-  void InsertRootHandler(BPlusTreePage *page, BPlusTreePage *sibling_page, page_id_t &parent_page_id,
-                         const KeyType &key, const KeyType &sib_key);
+  void InsertRootHandler(BPlusTreePage *page, BPlusTreePage *sibling_page, const KeyType &key, const KeyType &sib_key);
   // Helper function of Insert. Leaf Page do split
   void LeafDoSplit(LeafPage *leaf_page);
   // Helper function of Insert. Parent Page do split
-  void ParentDoSplit(InternalPage *parent_page, page_id_t sib_page_id,
-                         const KeyType &key, const KeyType &sib_key);
+  void ParentDoSplit(InternalPage *parent_page, const KeyType &sib_key, page_id_t sib_page_id);
+  void InsertIntoTmpArray(const KeyType &sib_key, page_id_t sib_page_id, std::pair<KeyType, page_id_t> temp_array[]);
 
   // Remove a key and its value from this B+ tree.
   void Remove(const KeyType &key, Transaction *transaction = nullptr);
