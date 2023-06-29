@@ -32,6 +32,7 @@ auto BPLUSTREE_TYPE::IsEmpty() const -> bool { return root_page_id_ == INVALID_P
  */
 INDEX_TEMPLATE_ARGUMENTS
 auto BPLUSTREE_TYPE::GetValue(const KeyType &key, std::vector<ValueType> *result, Transaction *transaction) -> bool {
+  std::scoped_lock<std::mutex> lock(latch_);
   page_id_t leaf_page_id;
   auto leaf_page = FindLeafPage(key, leaf_page_id);
 
@@ -92,6 +93,7 @@ auto BPLUSTREE_TYPE::FetchPage(page_id_t page_id) -> BPlusTreePage * {
  */
 INDEX_TEMPLATE_ARGUMENTS
 auto BPLUSTREE_TYPE::Insert(const KeyType &key, const ValueType &value, Transaction *transaction) -> bool {
+  std::scoped_lock<std::mutex> lock(latch_);
   // if tree is empty, create a root page and insert into it
   if (IsEmpty()) {
     InsertIntoRoot(key, value, transaction);
@@ -295,15 +297,17 @@ void BPLUSTREE_TYPE::InsertIntoTmpArray(const KeyType &sib_key, page_id_t sib_pa
  */
 INDEX_TEMPLATE_ARGUMENTS
 void BPLUSTREE_TYPE::Remove(const KeyType &key, Transaction *transaction) {
+  std::scoped_lock<std::mutex> lock(latch_);
   // std::cout << "remove " << key << std::endl;
   page_id_t leaf_page_id;
   ValueType useless;
 
   auto leaf_page = FindLeafPage(key, leaf_page_id);
 
-  if (!leaf_page->Remove(key, useless, comparator_)) {
-    throw std::runtime_error("Remove: can't find to remove");
-  }
+  // if (!leaf_page->Remove(key, useless, comparator_)) {
+  //   throw std::runtime_error("Remove: can't find to remove");
+  // }
+  leaf_page->Remove(key, useless, comparator_);
 
   if (leaf_page->GetSize() < leaf_page->GetMinSize()) {
     CoalesceOrRedistribute(leaf_page);
