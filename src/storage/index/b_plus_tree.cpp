@@ -593,20 +593,7 @@ auto BPLUSTREE_TYPE::Begin(const KeyType &key) -> INDEXITERATOR_TYPE {
  * @return : index iterator
  */
 INDEX_TEMPLATE_ARGUMENTS
-auto BPLUSTREE_TYPE::End() -> INDEXITERATOR_TYPE {
-  auto *curr_page = reinterpret_cast<InternalPage *>(buffer_pool_manager_->FetchPage(root_page_id_)->GetData());
-  while (!curr_page->IsLeafPage()) {
-    page_id_t next_rightmost_page_id = curr_page->ValueAt(curr_page->GetSize() - 1);
-
-    buffer_pool_manager_->UnpinPage(curr_page->GetPageId(), false);
-
-    curr_page = reinterpret_cast<InternalPage *>(buffer_pool_manager_->FetchPage(next_rightmost_page_id)->GetData());
-  }
-  page_id_t page_id = curr_page->GetPageId();
-  auto *leaf_page = reinterpret_cast<LeafPage *>(buffer_pool_manager_->FetchPage(page_id)->GetData());
-  // find the leftmost leaf page
-  return INDEXITERATOR_TYPE(leaf_page, leaf_page->GetSize(), buffer_pool_manager_, comparator_);
-}
+auto BPLUSTREE_TYPE::End() -> INDEXITERATOR_TYPE { return INDEXITERATOR_TYPE(nullptr, 0, buffer_pool_manager_, comparator_);}
 
 /**
  * @return Page id of the root of this tree
