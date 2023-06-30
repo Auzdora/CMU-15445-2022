@@ -47,7 +47,7 @@ class IndexIterator {
     if (leaf_page_->GetSize() == 1 && leaf_page_->IsRootPage()) {
       return true;
     }
-    if (leaf_page_->IsRootPage() &&
+    if (leaf_page_->GetNextPageId() == INVALID_PAGE_ID &&
         comparator_(leaf_page_->KeyAt(index_at_), itr.leaf_page_->KeyAt(itr.index_at_)) == 0) {
       return true;
     }

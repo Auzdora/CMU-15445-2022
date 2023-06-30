@@ -94,7 +94,7 @@ auto BPLUSTREE_TYPE::FetchPage(page_id_t page_id) -> BPlusTreePage * {
 INDEX_TEMPLATE_ARGUMENTS
 auto BPLUSTREE_TYPE::Insert(const KeyType &key, const ValueType &value, Transaction *transaction) -> bool {
   std::scoped_lock<std::mutex> lock(latch_);
-  std::cout << "insert " << key << std::endl;
+  // std::cout << "insert " << key << std::endl;
   // if tree is empty, create a root page and insert into it
   if (IsEmpty()) {
     InsertIntoRoot(key, value, transaction);
@@ -128,7 +128,12 @@ auto BPLUSTREE_TYPE::InsertIntoLeaf(const KeyType &key, const ValueType &value, 
   }
 
   // the leaf page already full, insert first, then do split
-  leaf_page->Insert(key, value, comparator_);
+  if (!leaf_page->Insert(key, value, comparator_)) {
+    // std::cout << "insert same key " << key << std::endl;
+    buffer_pool_manager_->UnpinPage(leaf_page_id, false);
+    return false;
+  }
+
   LeafDoSplit(leaf_page);
 
   return true;
@@ -300,6 +305,7 @@ void BPLUSTREE_TYPE::InsertIntoTmpArray(const KeyType &sib_key, page_id_t sib_pa
 INDEX_TEMPLATE_ARGUMENTS
 void BPLUSTREE_TYPE::Remove(const KeyType &key, Transaction *transaction) {
   std::scoped_lock<std::mutex> lock(latch_);
+  // std::cout << "remove " << key << std::endl;
   page_id_t leaf_page_id;
   ValueType useless;
 
@@ -308,7 +314,11 @@ void BPLUSTREE_TYPE::Remove(const KeyType &key, Transaction *transaction) {
   // if (!leaf_page->Remove(key, useless, comparator_)) {
   //   throw std::runtime_error("Remove: can't find to remove");
   // }
-  leaf_page->Remove(key, useless, comparator_);
+  if (!leaf_page->Remove(key, useless, comparator_)) {
+    // std::cout << "remove same key " << key << std::endl;
+    buffer_pool_manager_->UnpinPage(leaf_page_id, false);
+    return;
+  }
 
   if (leaf_page->GetSize() < leaf_page->GetMinSize()) {
     CoalesceOrRedistribute(leaf_page);
