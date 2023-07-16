@@ -37,7 +37,9 @@ class IndexIterator {
     return comparator_(leaf_page_->KeyAt(index_at_), itr.leaf_page_->KeyAt(itr.index_at_)) == 0;
   }
 
-  auto operator!=(const IndexIterator &itr) const -> bool { return !(itr.leaf_page_ == leaf_page_ && itr.index_at_ == index_at_); }
+  auto operator!=(const IndexIterator &itr) const -> bool {
+    return !(itr.leaf_page_ == leaf_page_ && itr.index_at_ == index_at_);
+  }
 
  private:
   // add your own private member variables here

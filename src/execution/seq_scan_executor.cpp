@@ -14,13 +14,14 @@
 
 namespace bustub {
 
-SeqScanExecutor::SeqScanExecutor(ExecutorContext *exec_ctx, const SeqScanPlanNode *plan) : AbstractExecutor(exec_ctx), plan_(plan) {}
+SeqScanExecutor::SeqScanExecutor(ExecutorContext *exec_ctx, const SeqScanPlanNode *plan)
+    : AbstractExecutor(exec_ctx), plan_(plan) {}
 
 void SeqScanExecutor::Init() {}
 
 auto SeqScanExecutor::Next(Tuple *tuple, RID *rid) -> bool {
   table_oid_t toid = plan_->GetTableOid();
-  TableInfo* info = exec_ctx_->GetCatalog()->GetTable(toid);
+  TableInfo *info = exec_ctx_->GetCatalog()->GetTable(toid);
 
   if (!current_position_) {
     // This is the first call to Next, initialize the iterator

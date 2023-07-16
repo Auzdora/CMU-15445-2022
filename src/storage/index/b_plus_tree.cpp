@@ -593,7 +593,9 @@ auto BPLUSTREE_TYPE::Begin(const KeyType &key) -> INDEXITERATOR_TYPE {
  * @return : index iterator
  */
 INDEX_TEMPLATE_ARGUMENTS
-auto BPLUSTREE_TYPE::End() -> INDEXITERATOR_TYPE { return INDEXITERATOR_TYPE(nullptr, 0, buffer_pool_manager_, comparator_);}
+auto BPLUSTREE_TYPE::End() -> INDEXITERATOR_TYPE {
+  return INDEXITERATOR_TYPE(nullptr, 0, buffer_pool_manager_, comparator_);
+}
 
 /**
  * @return Page id of the root of this tree
