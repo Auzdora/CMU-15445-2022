@@ -38,7 +38,8 @@ auto DeleteExecutor::Next([[maybe_unused]] Tuple *tuple, RID *rid) -> bool {
     // Update all indexes of the table
     auto indexes = exec_ctx_->GetCatalog()->GetTableIndexes(info->name_);
     for (auto index : indexes) {
-      index->index_->DeleteEntry(child_tuple, *rid, exec_ctx_->GetTransaction());
+      auto key = child_tuple.KeyFromTuple(info->schema_, index->key_schema_, index->index_->GetKeyAttrs());
+      index->index_->DeleteEntry(key, *rid, exec_ctx_->GetTransaction());
     }
 
     second_call_ = true;

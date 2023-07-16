@@ -34,7 +34,7 @@ class IndexIterator {
   auto operator++() -> IndexIterator &;
 
   auto operator==(const IndexIterator &itr) const -> bool {
-    return comparator_(leaf_page_->KeyAt(index_at_), itr.leaf_page_->KeyAt(itr.index_at_)) == 0;
+    return (itr.leaf_page_ == leaf_page_ && itr.index_at_ == index_at_);
   }
 
   auto operator!=(const IndexIterator &itr) const -> bool {

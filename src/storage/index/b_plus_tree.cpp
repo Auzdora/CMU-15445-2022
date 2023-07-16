@@ -565,7 +565,9 @@ auto BPLUSTREE_TYPE::Begin() -> INDEXITERATOR_TYPE {
   }
   page_id_t page_id = curr_page->GetPageId();
   auto *leaf_page = reinterpret_cast<LeafPage *>(buffer_pool_manager_->FetchPage(page_id)->GetData());
-
+  if (leaf_page->GetSize() == 0) {
+    return INDEXITERATOR_TYPE(nullptr, 0, buffer_pool_manager_, comparator_);
+  }
   // find the leftmost leaf page
   return INDEXITERATOR_TYPE(leaf_page, 0, buffer_pool_manager_, comparator_);
 }
