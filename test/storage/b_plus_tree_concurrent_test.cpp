@@ -11,11 +11,9 @@
 //===----------------------------------------------------------------------===//
 
 #include <algorithm>
-#include <chrono>
 #include <cstdio>
 #include <functional>
 #include <random>
-#include <thread>
 
 #include "buffer/buffer_pool_manager_instance.h"
 #include "gtest/gtest.h"
