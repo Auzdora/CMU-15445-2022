@@ -1,5 +1,7 @@
+#include <cstddef>
 #include <string>
 
+#include "common/config.h"
 #include "common/exception.h"
 #include "common/logger.h"
 #include "common/rid.h"
@@ -555,6 +557,9 @@ void BPLUSTREE_TYPE::Redistribute(N *page, N *neighbor_page, bool isleft, const 
  */
 INDEX_TEMPLATE_ARGUMENTS
 auto BPLUSTREE_TYPE::Begin() -> INDEXITERATOR_TYPE {
+  if (root_page_id_ == INVALID_PAGE_ID) {
+    return INDEXITERATOR_TYPE(nullptr, 0, buffer_pool_manager_, comparator_);
+  }
   auto *curr_page = reinterpret_cast<InternalPage *>(buffer_pool_manager_->FetchPage(root_page_id_)->GetData());
   while (!curr_page->IsLeafPage()) {
     page_id_t next_leftmost_page_id = curr_page->ValueAt(0);
