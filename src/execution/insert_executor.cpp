@@ -31,11 +31,12 @@ void InsertExecutor::Init() {
 
 auto InsertExecutor::Next([[maybe_unused]] Tuple *tuple, RID *rid) -> bool {
   Tuple child_tuple{};
+  RID child_rid;
   table_oid_t toid = plan_->TableOid();
   TableInfo *info = exec_ctx_->GetCatalog()->GetTable(toid);
 
-  while (child_executor_->Next(&child_tuple, rid)) {
-    if (!info->table_->InsertTuple(child_tuple, rid, exec_ctx_->GetTransaction())) {
+  while (child_executor_->Next(&child_tuple, &child_rid)) {
+    if (!info->table_->InsertTuple(child_tuple, &child_rid, exec_ctx_->GetTransaction())) {
       return false;
     }
 
@@ -43,7 +44,7 @@ auto InsertExecutor::Next([[maybe_unused]] Tuple *tuple, RID *rid) -> bool {
     auto indexes = exec_ctx_->GetCatalog()->GetTableIndexes(info->name_);
     for (auto index : indexes) {
       auto key = child_tuple.KeyFromTuple(info->schema_, index->key_schema_, index->index_->GetKeyAttrs());
-      index->index_->InsertEntry(key, *rid, exec_ctx_->GetTransaction());
+      index->index_->InsertEntry(key, child_rid, exec_ctx_->GetTransaction());
     }
 
     second_call_ = true;
