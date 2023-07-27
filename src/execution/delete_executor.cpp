@@ -23,6 +23,10 @@ DeleteExecutor::DeleteExecutor(ExecutorContext *exec_ctx, const DeletePlanNode *
 void DeleteExecutor::Init() {
   // Initialize the child executor
   child_executor_->Init();
+
+  // Initialize the insert executor
+  cnt_ = 0;
+  second_call_ = false;
 }
 
 auto DeleteExecutor::Next([[maybe_unused]] Tuple *tuple, RID *rid) -> bool {

@@ -27,7 +27,11 @@ AggregationExecutor::AggregationExecutor(ExecutorContext *exec_ctx, const Aggreg
       second_call_(false),
       empty_call_(false) {}
 
-void AggregationExecutor::Init() { child_->Init(); }
+void AggregationExecutor::Init() {
+    child_->Init();
+    aht_.Clear();
+    aht_iterator_ = aht_.Begin();
+}
 
 auto AggregationExecutor::Next(Tuple *tuple, RID *rid) -> bool {
   Tuple child_tuple{};
