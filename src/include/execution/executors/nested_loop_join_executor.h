@@ -69,10 +69,8 @@ class NestedLoopJoinExecutor : public AbstractExecutor {
   std::unique_ptr<AbstractExecutor> right_executor_;
   /** Indicate one iter of inner table*/
   bool inner_done_once_;
-  bool first_call_;
+  bool has_returned_once_;
   Tuple outer_tuple_{};
-  size_t miss_size_{0};
-  size_t whole_size_{0};
 };
 
 }  // namespace bustub

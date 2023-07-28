@@ -25,7 +25,7 @@ NestedLoopJoinExecutor::NestedLoopJoinExecutor(ExecutorContext *exec_ctx, const 
       left_executor_(std::move(left_executor)),
       right_executor_(std::move(right_executor)),
       inner_done_once_(true),
-      first_call_(true) {
+      has_returned_once_(false) {
   if (!(plan->GetJoinType() == JoinType::LEFT || plan->GetJoinType() == JoinType::INNER)) {
     // Note for 2022 Fall: You ONLY need to implement left join and inner join.
     throw bustub::NotImplementedException(fmt::format("join type {} not supported", plan->GetJoinType()));
@@ -36,10 +36,8 @@ void NestedLoopJoinExecutor::Init() {
   left_executor_->Init();
   right_executor_->Init();
   inner_done_once_ = true;
-  first_call_ = true;
+  has_returned_once_ = false;
   outer_tuple_ = {};
-  miss_size_ = 0;
-  whole_size_ = 0;
 }
 
 void NestedLoopJoinExecutor::ExtractValues(const Tuple &tuple, std::vector<Value> &values,
@@ -61,15 +59,6 @@ auto NestedLoopJoinExecutor::Next(Tuple *tuple, RID *rid) -> bool {
   Tuple right_tuple{};
   RID left_rid;
   RID right_rid;
-  if (first_call_) {
-    // get new outer tuple, return false if outer reaches end
-    if (!left_executor_->Next(&left_tuple, &left_rid)) {
-      return false;
-    }
-    outer_tuple_ = left_tuple;
-    first_call_ = false;
-    inner_done_once_ = false;
-  }
 
   while (true) {
     // update outer
@@ -82,11 +71,9 @@ auto NestedLoopJoinExecutor::Next(Tuple *tuple, RID *rid) -> bool {
     }
     // begin inner
     while (right_executor_->Next(&right_tuple, &right_rid)) {
-      whole_size_++;
       auto value = plan_->Predicate().EvaluateJoin(&outer_tuple_, left_executor_->GetOutputSchema(), &right_tuple,
                                                    right_executor_->GetOutputSchema());
       if (!value.IsNull() && !value.GetAs<bool>()) {
-        miss_size_++;
         continue;
       }
       if (!value.IsNull() && value.GetAs<bool>()) {
@@ -95,6 +82,7 @@ auto NestedLoopJoinExecutor::Next(Tuple *tuple, RID *rid) -> bool {
         ExtractValues(outer_tuple_, values, left_executor_->GetOutputSchema());
         ExtractValues(right_tuple, values, right_executor_->GetOutputSchema());
         *tuple = Tuple{values, &GetOutputSchema()};
+        has_returned_once_ = true;
         return true;
       }
     }
@@ -102,19 +90,17 @@ auto NestedLoopJoinExecutor::Next(Tuple *tuple, RID *rid) -> bool {
     right_executor_->Init();
     inner_done_once_ = true;
 
-    if (miss_size_ == whole_size_ && plan_->GetJoinType() == JoinType::LEFT) {
+    if (!has_returned_once_ && plan_->GetJoinType() == JoinType::LEFT) {
       std::vector<Value> values{};
       values.reserve(GetOutputSchema().GetColumnCount());
       ExtractValues(outer_tuple_, values, left_executor_->GetOutputSchema());
       AddNullValues(values, right_executor_->GetOutputSchema());
       *tuple = Tuple{values, &GetOutputSchema()};
-      whole_size_ = miss_size_ = 0;
       return true;
     }
 
-    whole_size_ = miss_size_ = 0;
+    has_returned_once_ = false;
   }
-  return false;
 }
 
 }  // namespace bustub
