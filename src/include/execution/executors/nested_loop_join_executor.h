@@ -12,6 +12,7 @@
 
 #pragma once
 
+#include <cstddef>
 #include <memory>
 #include <utility>
 
@@ -19,6 +20,7 @@
 #include "execution/executors/abstract_executor.h"
 #include "execution/plans/nested_loop_join_plan.h"
 #include "storage/table/tuple.h"
+#include "type/value_factory.h"
 
 namespace bustub {
 
@@ -52,9 +54,23 @@ class NestedLoopJoinExecutor : public AbstractExecutor {
   /** @return The output schema for the insert */
   auto GetOutputSchema() const -> const Schema & override { return plan_->OutputSchema(); };
 
+  /** Extract values in a tuple to a vector*/
+  void ExtractValues(const Tuple &tuple, std::vector<Value> &values, const std::unique_ptr<AbstractExecutor> &executor);
+  void AddNullValues(std::vector<Value> &values, const std::unique_ptr<AbstractExecutor> &executor);
+
  private:
   /** The NestedLoopJoin plan node to be executed. */
   const NestedLoopJoinPlanNode *plan_;
+  /** The left child executor*/
+  std::unique_ptr<AbstractExecutor> left_executor_;
+  /** The right child executor*/
+  std::unique_ptr<AbstractExecutor> right_executor_;
+  /** Indicate one iter of inner table*/
+  bool inner_done_once_;
+  bool first_call_;
+  Tuple outer_tuple_{};
+  size_t miss_size_{0};
+  size_t whole_size_{0};
 };
 
 }  // namespace bustub

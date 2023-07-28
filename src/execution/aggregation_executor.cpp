@@ -29,7 +29,7 @@ AggregationExecutor::AggregationExecutor(ExecutorContext *exec_ctx, const Aggreg
 
 void AggregationExecutor::Init() {
     child_->Init();
-    aht_.Clear();
+    // aht_.Clear();
     aht_iterator_ = aht_.Begin();
 }
 
