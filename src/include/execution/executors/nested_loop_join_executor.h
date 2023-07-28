@@ -56,8 +56,9 @@ class NestedLoopJoinExecutor : public AbstractExecutor {
   auto GetOutputSchema() const -> const Schema & override { return plan_->OutputSchema(); };
 
   /** Extract values in a tuple to a vector*/
-  void ExtractValues(const Tuple &tuple, std::vector<Value> &values, const std::unique_ptr<AbstractExecutor> &executor);
-  void AddNullValues(std::vector<Value> &values, const std::unique_ptr<AbstractExecutor> &executor);
+  void ExtractValues(const Tuple &tuple, std::vector<Value> &values, const Schema &schema);
+  /** Add null values to vectors*/
+  void AddNullValues(std::vector<Value> &values, const Schema &schema);
 
  private:
   /** The NestedLoopJoin plan node to be executed. */

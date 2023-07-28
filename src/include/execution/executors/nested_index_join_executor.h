@@ -18,12 +18,14 @@
 #include <utility>
 #include <vector>
 
+#include "catalog/schema.h"
 #include "execution/executor_context.h"
 #include "execution/executors/abstract_executor.h"
 #include "execution/expressions/abstract_expression.h"
 #include "execution/plans/nested_index_join_plan.h"
 #include "storage/table/tmp_tuple.h"
 #include "storage/table/tuple.h"
+#include "type/value_factory.h"
 
 namespace bustub {
 
@@ -47,8 +49,15 @@ class NestIndexJoinExecutor : public AbstractExecutor {
 
   auto Next(Tuple *tuple, RID *rid) -> bool override;
 
+  /** Extract values in a tuple to a vector*/
+  void ExtractValues(const Tuple &tuple, std::vector<Value> &values, const Schema &schema);
+  /** Add null values to vectors*/
+  void AddNullValues(std::vector<Value> &values, const Schema &schema);
+
  private:
   /** The nested index join plan node. */
   const NestedIndexJoinPlanNode *plan_;
+  /** The child executor*/
+  std::unique_ptr<AbstractExecutor> child_executor_;
 };
 }  // namespace bustub

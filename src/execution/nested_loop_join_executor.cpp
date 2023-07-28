@@ -43,15 +43,15 @@ void NestedLoopJoinExecutor::Init() {
 }
 
 void NestedLoopJoinExecutor::ExtractValues(const Tuple &tuple, std::vector<Value> &values,
-                                           const std::unique_ptr<AbstractExecutor> &executor) {
-  for (uint32_t i = 0; i < executor->GetOutputSchema().GetColumnCount(); i++) {
-    values.emplace_back(tuple.GetValue(&executor->GetOutputSchema(), i));
+                                           const Schema &schema) {
+  for (uint32_t i = 0; i < schema.GetColumnCount(); i++) {
+    values.emplace_back(tuple.GetValue(&schema, i));
   }
 }
 
 void NestedLoopJoinExecutor::AddNullValues(std::vector<Value> &values,
-                                           const std::unique_ptr<AbstractExecutor> &executor) {
-  for (uint32_t i = 0; i < executor->GetOutputSchema().GetColumnCount(); i++) {
+                                           const Schema &schema) {
+  for (uint32_t i = 0; i < schema.GetColumnCount(); i++) {
     values.emplace_back(ValueFactory::GetNullValueByType(TypeId::INTEGER));
   }
 }
@@ -92,8 +92,8 @@ auto NestedLoopJoinExecutor::Next(Tuple *tuple, RID *rid) -> bool {
       if (!value.IsNull() && value.GetAs<bool>()) {
         std::vector<Value> values{};
         values.reserve(GetOutputSchema().GetColumnCount());
-        ExtractValues(outer_tuple_, values, left_executor_);
-        ExtractValues(right_tuple, values, right_executor_);
+        ExtractValues(outer_tuple_, values, left_executor_->GetOutputSchema());
+        ExtractValues(right_tuple, values, right_executor_->GetOutputSchema());
         *tuple = Tuple{values, &GetOutputSchema()};
         return true;
       }
@@ -105,8 +105,8 @@ auto NestedLoopJoinExecutor::Next(Tuple *tuple, RID *rid) -> bool {
     if (miss_size_ == whole_size_ && plan_->GetJoinType() == JoinType::LEFT) {
       std::vector<Value> values{};
       values.reserve(GetOutputSchema().GetColumnCount());
-      ExtractValues(outer_tuple_, values, left_executor_);
-      AddNullValues(values, right_executor_);
+      ExtractValues(outer_tuple_, values, left_executor_->GetOutputSchema());
+      AddNullValues(values, right_executor_->GetOutputSchema());
       *tuple = Tuple{values, &GetOutputSchema()};
       whole_size_ = miss_size_ = 0;
       return true;
