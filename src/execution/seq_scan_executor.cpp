@@ -17,9 +17,7 @@ namespace bustub {
 SeqScanExecutor::SeqScanExecutor(ExecutorContext *exec_ctx, const SeqScanPlanNode *plan)
     : AbstractExecutor(exec_ctx), plan_(plan) {}
 
-void SeqScanExecutor::Init() {
-  current_position_ = nullptr;
-}
+void SeqScanExecutor::Init() { current_position_ = nullptr; }
 
 auto SeqScanExecutor::Next(Tuple *tuple, RID *rid) -> bool {
   table_oid_t toid = plan_->GetTableOid();

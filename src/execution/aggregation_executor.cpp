@@ -28,9 +28,9 @@ AggregationExecutor::AggregationExecutor(ExecutorContext *exec_ctx, const Aggreg
       empty_call_(false) {}
 
 void AggregationExecutor::Init() {
-    child_->Init();
-    // aht_.Clear();
-    aht_iterator_ = aht_.Begin();
+  child_->Init();
+  // aht_.Clear();
+  aht_iterator_ = aht_.Begin();
 }
 
 auto AggregationExecutor::Next(Tuple *tuple, RID *rid) -> bool {

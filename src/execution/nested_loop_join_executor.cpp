@@ -42,15 +42,16 @@ void NestedLoopJoinExecutor::Init() {
   whole_size_ = 0;
 }
 
-void NestedLoopJoinExecutor::ExtractValues(const Tuple &tuple, std::vector<Value> &values, const std::unique_ptr<AbstractExecutor> &executor) {
+void NestedLoopJoinExecutor::ExtractValues(const Tuple &tuple, std::vector<Value> &values,
+                                           const std::unique_ptr<AbstractExecutor> &executor) {
   for (uint32_t i = 0; i < executor->GetOutputSchema().GetColumnCount(); i++) {
     values.emplace_back(tuple.GetValue(&executor->GetOutputSchema(), i));
   }
 }
 
-void NestedLoopJoinExecutor::AddNullValues(std::vector<Value> &values, const std::unique_ptr<AbstractExecutor> &executor) {
+void NestedLoopJoinExecutor::AddNullValues(std::vector<Value> &values,
+                                           const std::unique_ptr<AbstractExecutor> &executor) {
   for (uint32_t i = 0; i < executor->GetOutputSchema().GetColumnCount(); i++) {
-    // TypeId type_id = tuple.GetValue(&executor->GetOutputSchema(), i).GetTypeId();
     values.emplace_back(ValueFactory::GetNullValueByType(TypeId::INTEGER));
   }
 }
@@ -70,7 +71,7 @@ auto NestedLoopJoinExecutor::Next(Tuple *tuple, RID *rid) -> bool {
     inner_done_once_ = false;
   }
 
-  while(true) {
+  while (true) {
     // update outer
     if (inner_done_once_) {
       if (!left_executor_->Next(&left_tuple, &left_rid)) {
@@ -79,30 +80,25 @@ auto NestedLoopJoinExecutor::Next(Tuple *tuple, RID *rid) -> bool {
       outer_tuple_ = left_tuple;
       inner_done_once_ = false;
     }
-    // std::cout << "outer is " << outer_tuple_.ToString(&left_executor_->GetOutputSchema()) << std::endl;
     // begin inner
     while (right_executor_->Next(&right_tuple, &right_rid)) {
       whole_size_++;
-      // std::cout << "inner is " << right_tuple.ToString(&right_executor_->GetOutputSchema()) << std::endl;
       auto value = plan_->Predicate().EvaluateJoin(&outer_tuple_, left_executor_->GetOutputSchema(), &right_tuple,
-                                                    right_executor_->GetOutputSchema());
+                                                   right_executor_->GetOutputSchema());
       if (!value.IsNull() && !value.GetAs<bool>()) {
         miss_size_++;
-        // std::cout << "Not equal, miss size is " << miss_size_ << std::endl;
         continue;
       }
       if (!value.IsNull() && value.GetAs<bool>()) {
         std::vector<Value> values{};
-        // std::cout << "satisfy condition " << std::endl;     
         values.reserve(GetOutputSchema().GetColumnCount());
         ExtractValues(outer_tuple_, values, left_executor_);
         ExtractValues(right_tuple, values, right_executor_);
         *tuple = Tuple{values, &GetOutputSchema()};
-        // std::cout << "tuple is " << tuple->ToString(&GetOutputSchema()) << std::endl;
         return true;
-      }        
+      }
     }
-    
+
     right_executor_->Init();
     inner_done_once_ = true;
 
