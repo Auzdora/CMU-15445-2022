@@ -19,19 +19,19 @@ LimitExecutor::LimitExecutor(ExecutorContext *exec_ctx, const LimitPlanNode *pla
     : AbstractExecutor(exec_ctx), plan_(plan), child_executor_(std::move(child_executor)) {}
 
 void LimitExecutor::Init() {
-    child_executor_->Init();
-    curr_size_ = 0;
+  child_executor_->Init();
+  curr_size_ = 0;
 }
 
 auto LimitExecutor::Next(Tuple *tuple, RID *rid) -> bool {
-    if (curr_size_ < plan_->GetLimit()) {
-        if (!child_executor_->Next(tuple, rid)) {
-            return false;
-        }
-        ++curr_size_;
-        return true;
+  if (curr_size_ < plan_->GetLimit()) {
+    if (!child_executor_->Next(tuple, rid)) {
+      return false;
     }
-    return false;
+    ++curr_size_;
+    return true;
+  }
+  return false;
 }
 
 }  // namespace bustub
