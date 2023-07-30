@@ -40,15 +40,13 @@ void NestedLoopJoinExecutor::Init() {
   outer_tuple_ = {};
 }
 
-void NestedLoopJoinExecutor::ExtractValues(const Tuple &tuple, std::vector<Value> &values,
-                                           const Schema &schema) {
+void NestedLoopJoinExecutor::ExtractValues(const Tuple &tuple, std::vector<Value> &values, const Schema &schema) {
   for (uint32_t i = 0; i < schema.GetColumnCount(); i++) {
     values.emplace_back(tuple.GetValue(&schema, i));
   }
 }
 
-void NestedLoopJoinExecutor::AddNullValues(std::vector<Value> &values,
-                                           const Schema &schema) {
+void NestedLoopJoinExecutor::AddNullValues(std::vector<Value> &values, const Schema &schema) {
   for (uint32_t i = 0; i < schema.GetColumnCount(); i++) {
     values.emplace_back(ValueFactory::GetNullValueByType(TypeId::INTEGER));
   }

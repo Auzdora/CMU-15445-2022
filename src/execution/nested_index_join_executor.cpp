@@ -29,9 +29,7 @@ NestIndexJoinExecutor::NestIndexJoinExecutor(ExecutorContext *exec_ctx, const Ne
   }
 }
 
-void NestIndexJoinExecutor::Init() {
-  child_executor_->Init();
-}
+void NestIndexJoinExecutor::Init() { child_executor_->Init(); }
 
 // void NestIndexJoinExecutor::ExtractValues(const Tuple &tuple, std::vector<Value> &values,
 //                                            const std::unique_ptr<AbstractExecutor> &executor) {
@@ -40,15 +38,13 @@ void NestIndexJoinExecutor::Init() {
 //   }
 // }
 
-void NestIndexJoinExecutor::ExtractValues(const Tuple &tuple, std::vector<Value> &values,
-                                           const Schema &schema) {
+void NestIndexJoinExecutor::ExtractValues(const Tuple &tuple, std::vector<Value> &values, const Schema &schema) {
   for (uint32_t i = 0; i < schema.GetColumnCount(); i++) {
     values.emplace_back(tuple.GetValue(&schema, i));
   }
 }
 
-void NestIndexJoinExecutor::AddNullValues(std::vector<Value> &values,
-                                           const Schema &schema) {
+void NestIndexJoinExecutor::AddNullValues(std::vector<Value> &values, const Schema &schema) {
   for (uint32_t i = 0; i < schema.GetColumnCount(); i++) {
     values.emplace_back(ValueFactory::GetNullValueByType(TypeId::INTEGER));
   }
@@ -61,8 +57,8 @@ auto NestIndexJoinExecutor::Next(Tuple *tuple, RID *rid) -> bool {
   Tuple child_tuple{};
   RID child_rid;
 
-  while (true) { 
-    if(!child_executor_->Next(&child_tuple, &child_rid)) {
+  while (true) {
+    if (!child_executor_->Next(&child_tuple, &child_rid)) {
       return false;
     }
     std::vector<RID> result{};
@@ -83,10 +79,11 @@ auto NestIndexJoinExecutor::Next(Tuple *tuple, RID *rid) -> bool {
     }
 
     Tuple inner_tuple{};
-    auto table_page = reinterpret_cast<TablePage *>(exec_ctx_->GetBufferPoolManager()->FetchPage(result[0].GetPageId()));
+    auto table_page =
+        reinterpret_cast<TablePage *>(exec_ctx_->GetBufferPoolManager()->FetchPage(result[0].GetPageId()));
     table_page->GetTuple(result[0], &inner_tuple, exec_ctx_->GetTransaction(), exec_ctx_->GetLockManager());
     exec_ctx_->GetBufferPoolManager()->UnpinPage(result[0].GetPageId(), false);
-    
+
     ExtractValues(child_tuple, values, child_executor_->GetOutputSchema());
     ExtractValues(inner_tuple, values, plan_->InnerTableSchema());
     *tuple = Tuple{values, &GetOutputSchema()};
