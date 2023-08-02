@@ -8,7 +8,7 @@ TopNExecutor::TopNExecutor(ExecutorContext *exec_ctx, const TopNPlanNode *plan,
     : AbstractExecutor(exec_ctx),
       plan_(plan),
       child_executor_(std::move(child_executor)),
-      comp_(plan_->GetOrderBy(), GetOutputSchema()) {}
+      comp_(plan_->GetOrderBy(), plan_->OutputSchema()) {}
 
 void TopNExecutor::Init() {
   child_executor_->Init();

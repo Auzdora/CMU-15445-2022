@@ -24,7 +24,7 @@ auto IndexScanExecutor::Next(Tuple *tuple, RID *rid) -> bool {
   index_oid_t ioid = plan_->GetIndexOid();
   IndexInfo *index_info = exec_ctx_->GetCatalog()->GetIndex(ioid);
 
-  if (!tree_) {
+  if (tree_ == nullptr) {
     tree_ = dynamic_cast<BPlusTreeIndexForOneIntegerColumn *>(index_info->index_.get());
   }
 

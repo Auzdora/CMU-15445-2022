@@ -14,8 +14,8 @@
 
 #include <memory>
 #include <queue>
-#include <vector>
 #include <utility>
+#include <vector>
 
 #include "execution/executor_context.h"
 #include "execution/executors/abstract_executor.h"
