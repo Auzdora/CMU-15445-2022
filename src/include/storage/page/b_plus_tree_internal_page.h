@@ -42,31 +42,6 @@ class BPlusTreeInternalPage : public BPlusTreePage {
   void SetKeyAt(int index, const KeyType &key);
   auto ValueAt(int index) const -> ValueType;
 
-  // Insert into current array_
-  auto Insert(const KeyType &key, const ValueType &value, const KeyComparator &comparator) -> bool;
-  // Helper for finding the right place to insert
-  auto InsertAtIndex(const KeyType &key, const KeyComparator &comparator) -> int;
-
-  // Remove from current array_
-  auto Remove(const KeyType &key, const ValueType &value, const KeyComparator &comparator) -> bool;
-  // Helper for find the index to delete
-  auto RemoveAtIndex(const KeyType &key, const ValueType &value, const KeyComparator &comparator) -> int;
-
-  // Find the page id to traverse down to the tree
-  void Find(const KeyType &key, ValueType &page_id, const KeyComparator &comparator);
-  auto FindIndex(const KeyType &key, int &index, const KeyComparator &comparator) -> bool;
-  auto FindIndex(const page_id_t &page_id, int &index) -> bool;
-
-  // Delete all record in array_
-  void DeleteAll();
-
-  // copy out the 'n's record to
-  void CopyOut(MappingType *target, int start, int end);
-  auto GetArray() -> MappingType *;
-
-  // for debug
-  void PrintArray();
-
  private:
   // Flexible array member for page data.
   MappingType array_[1];

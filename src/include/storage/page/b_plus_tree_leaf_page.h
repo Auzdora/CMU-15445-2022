@@ -45,33 +45,10 @@ class BPlusTreeLeafPage : public BPlusTreePage {
   // After creating a new leaf page from buffer pool, must call initialize
   // method to set default values
   void Init(page_id_t page_id, page_id_t parent_id = INVALID_PAGE_ID, int max_size = LEAF_PAGE_SIZE);
-
   // helper methods
   auto GetNextPageId() const -> page_id_t;
   void SetNextPageId(page_id_t next_page_id);
   auto KeyAt(int index) const -> KeyType;
-  auto ValueAt(int index) const -> ValueType;
-
-  // Insert into current array_
-  auto Insert(const KeyType &key, const ValueType &value, const KeyComparator &comparator) -> bool;
-  // Helper for find the right place to insert
-  auto InsertAtIndex(const KeyType &key, const KeyComparator &comparator) -> int;
-
-  // Remove from current array_
-  auto Remove(const KeyType &key, const ValueType &value, const KeyComparator &comparator) -> bool;
-  // Helper for find the index to delete
-  auto RemoveAtIndex(const KeyType &key, const ValueType &value, const KeyComparator &comparator) -> int;
-
-  // Find the specific record id corresponding to the key
-  auto Find(const KeyType &key, ValueType &record_id, const KeyComparator &comparator) -> bool;
-  auto FindIndex(const KeyType &key, int &index, const KeyComparator &comparator) -> bool;
-  // Delete all record in array_
-  void DeleteAll();
-
-  // copy out the 'n's record
-  void CopyOut(MappingType *out, int start, int end);
-  auto GetArray() -> MappingType *;
-  void PrintArray();
 
  private:
   page_id_t next_page_id_;

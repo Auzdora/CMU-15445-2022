@@ -12,7 +12,6 @@
 
 #include <queue>
 #include <string>
-#include <utility>
 #include <vector>
 
 #include "concurrency/transaction.h"
@@ -48,45 +47,12 @@ class BPlusTree {
 
   // Insert a key-value pair into this B+ tree.
   auto Insert(const KeyType &key, const ValueType &value, Transaction *transaction = nullptr) -> bool;
-  // Helper fucntion of Insert. Handle the situation where tree has no node
-  void InsertIntoRoot(const KeyType &key, const ValueType &value, Transaction *transaction);
-  // Helper fucntion of Insert. Handle the situation where tree has no node
-  auto InsertIntoLeaf(const KeyType &key, const ValueType &value, Transaction *transaction) -> bool;
-  // Helper function of Insert. Insert into parent node.
-  void InsertIntoParent(BPlusTreePage *page, BPlusTreePage *sibling_page, const KeyType &key, const KeyType &sib_key);
-  // Helper function of Insert. Insert root page handler.
-  void InsertRootHandler(BPlusTreePage *page, BPlusTreePage *sibling_page, const KeyType &key, const KeyType &sib_key);
-  // Helper function of Insert. Leaf Page do split
-  void LeafDoSplit(LeafPage *leaf_page);
-  // Helper function of Insert. Parent Page do split
-  void ParentDoSplit(InternalPage *parent_page, const KeyType &sib_key, page_id_t sib_page_id);
-  void InsertIntoTmpArray(const KeyType &sib_key, page_id_t sib_page_id, std::pair<KeyType, page_id_t> temp_array[]);
 
   // Remove a key and its value from this B+ tree.
   void Remove(const KeyType &key, Transaction *transaction = nullptr);
-  // Helper function of Remove. Control the logic to coalesce or redistribute.
-  template <typename N>
-  void CoalesceOrRedistribute(N *page);
-  // Helper function of Remove. Make the child of N the new root of the tree if N has only one child.
-  template <typename N>
-  void RemoveRootHandler(N *page);
-  // Helper function of Remove. Find the neighbor page.
-  template <typename N>
-  auto FindNeighbor(N *page, N *&neighbor_page, KeyType &intermediate_key, int &index_at) -> bool;
-  // Helper function of Remove. Coalesce operation.
-  template <typename N>
-  void Coalesce(N *front_page, N *back_page, const KeyType &intermediate_key);
-  // Helper function of Remove. Redistribute operation.
-  template <typename N>
-  void Redistribute(N *page, N *neighbor_page, bool isleft, const int &index_at, const KeyType &intermediate_key);
 
   // return the value associated with a given key
   auto GetValue(const KeyType &key, std::vector<ValueType> *result, Transaction *transaction = nullptr) -> bool;
-
-  // return the value associated with a given key
-  // void FindPage(const KeyType &key, page_id_t &page_id);
-  auto FindLeafPage(const KeyType &key, page_id_t &page_id) -> LeafPage *;
-  auto FetchPage(page_id_t page_id) -> BPlusTreePage *;
 
   // return the page id of the root node
   auto GetRootPageId() -> page_id_t;
@@ -123,7 +89,6 @@ class BPlusTree {
   KeyComparator comparator_;
   int leaf_max_size_;
   int internal_max_size_;
-  std::mutex latch_;
 };
 
 }  // namespace bustub
