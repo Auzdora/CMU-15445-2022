@@ -24,11 +24,6 @@ auto TopNExecutor::Next(Tuple *tuple, RID *rid) -> bool {
       }
     }
 
-    auto heap_cpy = heap_;
-    while (!heap_cpy.empty()) {
-      heap_cpy.pop();
-    }
-
     while (!heap_.empty()) {
       vec_.push_back(heap_.top());
       heap_.pop();
