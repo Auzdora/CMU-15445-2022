@@ -36,7 +36,7 @@ class TransactionManager;
 class LockManager {
  public:
   enum class LockMode { SHARED, EXCLUSIVE, INTENTION_SHARED, INTENTION_EXCLUSIVE, SHARED_INTENTION_EXCLUSIVE };
-
+  enum class LockType { TABLE_LOCK, ROW_LOCK };
   /**
    * Structure to hold a lock request.
    * This could be a lock request on a table OR a row.
@@ -64,13 +64,23 @@ class LockManager {
   class LockRequestQueue {
    public:
     /** List of lock requests for the same resource (table or row) */
-    std::list<LockRequest *> request_queue_;
+    std::list<std::shared_ptr<LockRequest>> request_queue_;
     /** For notifying blocked transactions on this rid */
     std::condition_variable cv_;
     /** txn_id of an upgrading transaction (if any) */
     txn_id_t upgrading_ = INVALID_TXN_ID;
     /** coordination */
     std::mutex latch_;
+
+    /**
+     * Insert into request queue.
+     * If current request is upgrade request, insert into first non-granted position.
+     * NOTE: Request Queue latch needs to be acquired when calling this function.
+     *
+     * @param lock_request lock request
+     * @param upgrade upgrade or not
+     */
+    void InsertIntoRequestQueue(const std::shared_ptr<LockRequest> &lock_request, bool upgrade);
   };
 
   /**
@@ -264,6 +274,105 @@ class LockManager {
    */
   auto UnlockRow(Transaction *txn, const table_oid_t &oid, const RID &rid) -> bool;
 
+  /**
+   * Check If this lock request is valid or not
+   *
+   * This method will return false if the request is not valid.
+   * Return true if it is valid.
+   * The check will do as follow:
+   * 1. Support lock mode checking
+   * 2. Isolation lock checking
+   * 3. Multilevel lock checking
+   * 4. Lock upgrade confirm
+   *
+   * @param queue lock request queue of certain oid/rid
+   * @param lock_type table lock or row lock
+   * @param txn transation handle that emits lock request
+   * @param lock_request generated lock request
+   * @param[out] abort_reason reason why lock request failed
+   * @param[out] upgrade indicate whether upgrade the current lock
+   * @return true if pass all check, false otherwise
+   */
+  auto IsLockRequestValid(std::shared_ptr<LockRequestQueue> &queue, LockType lock_type, Transaction *txn,
+                          const std::shared_ptr<LockRequest> &lock_request, AbortReason &abort_reason, bool &upgrade)
+      -> bool;
+
+  /**
+   * Check if upgrade is valid. If upgrade is valid, return true otherwise false.
+   *
+   * @param prev_lock_mode previous held lock mode on the resources
+   * @param curr_lock_mode current lock mode of request
+   * @return true if upgrade is compatible with preivous held lock mode, false other wise
+   */
+  auto IsUpgradeValid(LockMode prev_lock_mode, LockMode curr_lock_mode) -> bool;
+
+  /**
+   * Get the request queue from the resource safely. If lock table doesn't have
+   * corresponding queue, create one and return.
+   *
+   * @param lock_request generated lock request
+   * @return lock request queue
+   */
+  auto GetRequestQueue(const std::shared_ptr<LockRequest> &lock_request, LockType lock_type)
+      -> std::shared_ptr<LockRequestQueue>;
+
+  /**
+   * Check if current blocked thread can proceed.
+   *
+   * First check if itself is the first non-granted lock request, if it is, keep checking,
+   * otherwise return false directly. Then,
+   * @return true if this thread can proceed, false otherwise
+   */
+  auto ConditionCheck(std::shared_ptr<LockRequestQueue> &queue, Transaction *txn,
+                      const std::shared_ptr<LockRequest> &lock_request, LockType lock_type, bool upgrade) -> bool;
+
+  /**
+   * Check if current lock request is compatible with previous granted lock
+   *
+   * @param prev_lock_mode previous held lock mode on the resources
+   * @param curr_lock_mode current lock mode of request
+   * @return true if upgrade is compatible with preivous held lock mode, false other wise
+   */
+  auto IsLockCompatible(LockMode prev_lock_mode, LockMode curr_lock_mode) -> bool;
+
+  /**
+   * Grant lock and register to current transaction
+   *
+   * @param txn corresponding transaction
+   */
+  void GrantLock(std::shared_ptr<LockRequestQueue> &queue, Transaction *txn, std::shared_ptr<LockRequest> &lock_request,
+                 LockType lock_type, bool upgrade);
+
+  /**
+   * Check If this unlock request is valid or not
+   *
+   * This method will return false if the request is not valid.
+   * Return true if it is valid.
+   * The check will do as follow:
+   * 1. Check whether current transaction hold the lock on the resource
+   * 2. If unlock on table, check whether current transaction hold any row lock
+   *
+   * @param queue lock request queue of certain oid/rid
+   * @param lock_type table lock or row lock
+   * @param txn transation handle that emits lock request
+   * @param[out] lock_request an iterator of lock request
+   * @param oid table oid
+   * @param rid record id
+   * @param[out] abort_reason reason why lock request failed
+   * @return true if pass all check, false otherwise
+   */
+  auto IsUnLockRequestValid(std::shared_ptr<LockRequestQueue> &queue, LockType lock_type, Transaction *txn,
+                            std::list<std::shared_ptr<LockRequest>>::iterator &lock_request, const table_oid_t &oid,
+                            const RID &rid, AbortReason &abort_reason, bool upgrade) -> bool;
+
+  /**
+   * Upgrade unlock scheme
+   *
+   *
+   */
+  auto UpgradeUnlock(std::shared_ptr<LockRequestQueue> &queue, Transaction *txn, LockMode lock_mode, LockType lock_type,
+                     const table_oid_t &oid, const RID &rid) -> bool;
+
   /*** Graph API ***/
 
   /**
@@ -314,6 +423,22 @@ class LockManager {
   /** Waits-for graph representation. */
   std::unordered_map<txn_id_t, std::vector<txn_id_t>> waits_for_;
   std::mutex waits_for_latch_;
+
+  /** Upgrading compatible matrix */
+  bool upgrading_matrix_[5][5]{/*          S      X      IS     IX     SIX */
+                               /* S  */ {false, true, false, false, true},
+                               /* X  */ {false, false, false, false, false},
+                               /* IS */ {true, true, false, true, true},
+                               /* IX */ {false, true, false, false, true},
+                               /* SIX*/ {false, true, false, false, false}};
+
+  /** Locking compatible matrix*/
+  bool locking_matrix_[5][5]{/*          S      X      IS     IX     SIX */
+                             /* S  */ {true, false, true, false, false},
+                             /* X  */ {false, false, false, false, false},
+                             /* IS */ {true, false, true, true, true},
+                             /* IX */ {false, false, true, true, false},
+                             /* SIX*/ {false, false, true, false, false}};
 };
 
 }  // namespace bustub
