@@ -21,7 +21,7 @@ UpdateExecutor::UpdateExecutor(ExecutorContext *exec_ctx, const UpdatePlanNode *
   // As of Fall 2022, you DON'T need to implement update executor to have perfect score in project 3 / project 4.
 }
 
-void UpdateExecutor::Init() { throw NotImplementedException("UpdateExecutor is not implemented"); }
+void UpdateExecutor::Init() {}
 
 auto UpdateExecutor::Next([[maybe_unused]] Tuple *tuple, RID *rid) -> bool { return false; }
 

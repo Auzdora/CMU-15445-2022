@@ -12,6 +12,9 @@
 
 #include <memory>
 
+#include "common/exception.h"
+#include "concurrency/lock_manager.h"
+#include "concurrency/transaction_manager.h"
 #include "execution/executors/insert_executor.h"
 
 namespace bustub {
@@ -33,12 +36,22 @@ auto InsertExecutor::Next([[maybe_unused]] Tuple *tuple, RID *rid) -> bool {
   Tuple child_tuple{};
   RID child_rid;
   table_oid_t toid = plan_->TableOid();
+  auto txn = exec_ctx_->GetTransaction();
+  if (!txn->IsTableIntentionExclusiveLocked(toid)) {
+    auto is_granted = exec_ctx_->GetLockManager()->LockTable(txn, LockManager::LockMode::INTENTION_EXCLUSIVE, toid);
+    if (!is_granted) {
+      txn->SetState(TransactionState::ABORTED);
+      throw ExecutionException("can get IX lock on table for insert executor");
+    }
+  }
   TableInfo *info = exec_ctx_->GetCatalog()->GetTable(toid);
 
   while (child_executor_->Next(&child_tuple, &child_rid)) {
     if (!info->table_->InsertTuple(child_tuple, &child_rid, exec_ctx_->GetTransaction())) {
       return false;
     }
+
+    exec_ctx_->GetLockManager()->LockRow(txn, LockManager::LockMode::EXCLUSIVE, toid, child_rid);
 
     // Update all indexes of the table
     auto indexes = exec_ctx_->GetCatalog()->GetTableIndexes(info->name_);

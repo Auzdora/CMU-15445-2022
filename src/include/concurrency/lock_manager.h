@@ -14,9 +14,11 @@
 
 #include <algorithm>
 #include <condition_variable>  // NOLINT
+#include <deque>
 #include <list>
 #include <memory>
 #include <mutex>  // NOLINT
+#include <set>
 #include <unordered_map>
 #include <unordered_set>
 #include <utility>
@@ -29,6 +31,8 @@
 namespace bustub {
 
 class TransactionManager;
+
+const txn_id_t NO_CYCLE = -1;
 
 /**
  * LockManager handles transactions asking for locks on records.
@@ -294,8 +298,8 @@ class LockManager {
    * @return true if pass all check, false otherwise
    */
   auto IsLockRequestValid(std::shared_ptr<LockRequestQueue> &queue, LockType lock_type, Transaction *txn,
-                          const std::shared_ptr<LockRequest> &lock_request, AbortReason &abort_reason, bool &upgrade)
-      -> bool;
+                          const std::shared_ptr<LockRequest> &lock_request, AbortReason &abort_reason, bool &upgrade,
+                          LockMode &prev_lock_mode) -> bool;
 
   /**
    * Check if upgrade is valid. If upgrade is valid, return true otherwise false.
@@ -402,7 +406,25 @@ class LockManager {
   auto GetEdgeList() -> std::vector<std::pair<txn_id_t, txn_id_t>>;
 
   /**
+   * Search lock map and build waits-for graph.
+   *
+   * @param lock_map lock map (row or table)
+   */
+  template <class T>
+  auto BuildGraph(const std::unordered_map<T, std::shared_ptr<LockRequestQueue>> &lock_map) -> void;
+
+  /**
+   * Depth first search algorithm
+   *
+   *
+   */
+  auto DepthFirstSearch(txn_id_t curr_txn_id, std::set<txn_id_t> &visited, std::deque<txn_id_t> &path) -> txn_id_t;
+
+  /**
    * Runs cycle detection in the background.
+   *
+   * Mainly has two phase. First build the waits-for graph by searching table lock
+   * map and row lock map. Then using DFS searches cycle and break the cycle.
    */
   auto RunCycleDetection() -> void;
 

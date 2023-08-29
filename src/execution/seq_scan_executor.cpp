@@ -11,16 +11,34 @@
 //===----------------------------------------------------------------------===//
 
 #include "execution/executors/seq_scan_executor.h"
+#include "common/exception.h"
+#include "concurrency/lock_manager.h"
+#include "concurrency/transaction.h"
+#include "concurrency/transaction_manager.h"
 
 namespace bustub {
 
 SeqScanExecutor::SeqScanExecutor(ExecutorContext *exec_ctx, const SeqScanPlanNode *plan)
     : AbstractExecutor(exec_ctx), plan_(plan) {}
 
-void SeqScanExecutor::Init() { current_position_ = nullptr; }
+void SeqScanExecutor::Init() {
+  current_position_ = nullptr;
+  obtain_lock_ = false;
+}
 
 auto SeqScanExecutor::Next(Tuple *tuple, RID *rid) -> bool {
   table_oid_t toid = plan_->GetTableOid();
+  auto txn = exec_ctx_->GetTransaction();
+  if (txn->GetIsolationLevel() == IsolationLevel::READ_COMMITTED ||
+      txn->GetIsolationLevel() == IsolationLevel::REPEATABLE_READ) {
+    if (!txn->IsTableIntentionExclusiveLocked(toid)) {
+      auto is_granted = exec_ctx_->GetLockManager()->LockTable(txn, LockManager::LockMode::INTENTION_SHARED, toid);
+      if (!is_granted) {
+        txn->SetState(TransactionState::ABORTED);
+        throw ExecutionException("can get IS lock on table for seq scan executor");
+      }
+    }
+  }
   TableInfo *info = exec_ctx_->GetCatalog()->GetTable(toid);
 
   if (!current_position_) {
@@ -34,8 +52,24 @@ auto SeqScanExecutor::Next(Tuple *tuple, RID *rid) -> bool {
   }
 
   // Get the current tuple and RID
+  *rid = (*current_position_)->GetRid();
+
+  if (txn->GetIsolationLevel() == IsolationLevel::READ_COMMITTED ||
+      txn->GetIsolationLevel() == IsolationLevel::REPEATABLE_READ) {
+    // if (!txn->IsRowExclusiveLocked(toid, *rid) && !txn->IsRowSharedLocked(toid, *rid)) {
+    //   exec_ctx_->GetLockManager()->LockRow(txn, LockManager::LockMode::SHARED, toid, *rid);
+    // }
+    // try {
+    //   exec_ctx_->GetLockManager()->LockRow(txn, LockManager::LockMode::SHARED, toid, *rid);
+    // } catch (TransactionAbortException &e) {
+    //   std::cout << e.GetInfo() << std::endl;
+    // }
+    exec_ctx_->GetLockManager()->LockRow(txn, LockManager::LockMode::SHARED, toid, *rid);
+  }
   *tuple = **current_position_;
-  *rid = tuple->GetRid();
+  if (txn->GetIsolationLevel() == IsolationLevel::READ_COMMITTED) {
+    exec_ctx_->GetLockManager()->UnlockRow(txn, toid, *rid);
+  }
 
   // Advance to the next position in the table
   ++(*current_position_);
